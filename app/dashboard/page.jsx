@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { auth } from "@/lib/firebase";
+import { getFirebaseAuth } from "@/lib/firebase";
 import { logout } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ export default function Dashboard() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
+    const auth = getFirebaseAuth();
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);

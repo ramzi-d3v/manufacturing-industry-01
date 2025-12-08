@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { auth } from "@/lib/firebase";
+import { getFirebaseAuth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import AuthForm from "@/components/login/signup";
@@ -12,6 +12,7 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const auth = getFirebaseAuth();
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         // User is logged in, prevent access

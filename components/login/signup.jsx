@@ -1,7 +1,7 @@
 "use client";
 
 import { signup, login } from "@/lib/auth";
-import { auth } from "@/lib/firebase";
+import { getFirebaseAuth } from "@/lib/firebase";
 import { GoogleAuthProvider, OAuthProvider, signInWithPopup } from "firebase/auth";
 import { useRouter } from "next/navigation";
 
@@ -80,6 +80,7 @@ export default function AuthForm() {
     try {
       setIsLoading(true);
       setError("");
+      const auth = getFirebaseAuth();
       let provider;
       if (type === "google") {
         provider = new GoogleAuthProvider();
