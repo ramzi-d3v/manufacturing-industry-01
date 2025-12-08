@@ -1,4 +1,10 @@
 "use client";
+
+import { signup, login } from "@/lib/auth";
+import { auth } from "@/lib/firebase";
+import { GoogleAuthProvider, OAuthProvider, signInWithPopup } from "firebase/auth";
+import { useRouter } from "next/navigation";
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +14,13 @@ import styles from "./signup.module.css";
 
 const GitHubIcon = (props) => (
   <svg fill="currentColor" viewBox="0 0 24 24" {...props}>
-    <path d="M12.001 2C6.47598 2 2.00098 6.475 2.00098 12C2.00098 16.425 4.86348 20.1625 8.83848 21.4875C9.33848 21.575 9.52598 21.275 9.52598 21.0125C9.52598 20.775 9.51348 19.9875 9.51348 19.15C7.00098 19.6125 6.35098 18.5375 6.15098 17.975C6.03848 17.6875 5.55098 16.8 5.12598 16.5625C4.77598 16.375 4.27598 15.9125 5.11348 15.9C5.90098 15.8875 6.46348 16.625 6.65098 16.925C7.55098 18.4375 8.98848 18.0125 9.56348 17.75C9.65098 17.1 9.91348 16.6625 10.201 16.4125C7.97598 16.1625 5.65098 15.3 5.65098 11.475C5.65098 10.3875 6.03848 9.4875 6.67598 8.7875C6.57598 8.5375 6.22598 7.5125 6.77598 6.1375C6.77598 6.1375 7.61348 5.875 9.52598 7.1625C10.326 6.9375 11.176 6.825 12.026 6.825C12.876 6.825 13.726 6.9375 14.526 7.1625C16.4385 5.8625 17.276 6.1375 17.276 6.1375C17.826 7.5125 17.476 8.5375 17.376 8.7875C18.0135 9.4875 18.401 10.375 18.401 11.475C18.401 15.3125 16.0635 16.1625 13.8385 16.4125C14.201 16.725 14.5135 17.325 14.5135 18.2625C14.5135 19.6 14.501 20.675 14.501 21.0125C14.501 21.275 14.6885 21.5875 15.1885 21.4875C19.259 20.1133 21.9999 16.2963 22.001 12C22.001 6.475 17.526 2 12.001 2Z" />
+    <path d="M17.05 20.28c-.98.95-2.05.8-3.08.38-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.38C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.48-2.54 3.22l-.05-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
+  </svg>
+);
+
+const AppleIcon = (props) => (
+  <svg fill="currentColor" viewBox="0 0 24 24" {...props}>
+    <path d="M17.05 20.28c-.98.95-2.05.8-3.08.38-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.38C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.48-2.54 3.22l-.05-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
   </svg>
 );
 
@@ -35,6 +47,7 @@ const Logo = (props) => (
 );
 
 export default function AuthForm() {
+  const router = useRouter();
   const [isSignUp, setIsSignUp] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [emailSignUp, setEmailSignUp] = useState("");
@@ -42,28 +55,69 @@ export default function AuthForm() {
   const [emailLogin, setEmailLogin] = useState("");
   const [passwordLogin, setPasswordLogin] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const isSignUpValid = nameInput.trim() && emailSignUp.trim() && passwordSignUp.trim();
   const isLoginValid = emailLogin.trim() && passwordLogin.trim();
 
-  const handleSignUp = () => {
-    if (isSignUpValid) {
+  const handleSignUp = async () => {
+    if (!isSignUpValid) return;
+
+    try {
       setIsLoading(true);
-      setTimeout(() => setIsLoading(false), 2000);
+      setError("");
+      await signup(emailSignUp, passwordSignUp, nameInput);
+      router.push("/dashboard");
+    } catch (error) {
+      setError(error.message);
+      console.error(error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleLogin = (type) => {
-    setIsLoading(true);
-    setTimeout(() => setIsLoading(false), 2000);
-  };
-
-  const handleSignInClick = () => {
-    if (isLoginValid) {
+  const handleLogin = async (type) => {
+    try {
       setIsLoading(true);
-      setTimeout(() => setIsLoading(false), 2000);
+      setError("");
+      let provider;
+      if (type === "google") {
+        provider = new GoogleAuthProvider();
+      } else if (type === "apple") {
+        provider = new OAuthProvider("apple.com");
+      }
+      await signInWithPopup(auth, provider);
+      router.push("/dashboard");
+    } catch (error) {
+      // Don't show error for cancelled popup
+      if (error.code !== "auth/cancelled-popup-request" && error.code !== "auth/popup-closed-by-user") {
+        setError(error.message);
+        console.error(error.message);
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  const handleSignInClick = async () => {
+    if (!isLoginValid) return;
+
+    try {
+      setIsLoading(true);
+      setError("");
+      await login(emailLogin, passwordLogin);
+      router.push("/dashboard");
+    } catch (error) {
+      // Only show actual errors, not cancelled requests
+      if (error.code !== "auth/cancelled-popup-request" && error.code !== "auth/popup-closed-by-user") {
+        setError(error.message);
+      }
+      console.error(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
 
   return (
     <div className="flex items-center justify-center ">
@@ -87,6 +141,12 @@ export default function AuthForm() {
               {isSignUp ? "Sign in" : "Sign up"}
             </button>
           </p>
+
+          {error && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
 
           {/* Conditional Rendering for Forms */}
           {isSignUp ? (
@@ -147,33 +207,21 @@ export default function AuthForm() {
                 <Button 
                   variant="outline" 
                   className="flex-1 items-center justify-center space-x-2 py-2"
-                  disabled={isLoading}
-                  onClick={() => handleLogin("github")}
+                  disabled={false}
+                  onClick={() => handleLogin("apple")}
                 >
-                  {isLoading ? (
-                    <div className={`${styles.spinnerSmall}`}></div>
-                  ) : (
-                    <>
-                      <GitHubIcon className="size-5" />
-                      <span className="text-sm font-medium">Login with GitHub</span>
-                    </>
-                  )}
+                  <AppleIcon className="size-5" />
+                  <span className="text-sm font-medium">Login with Apple</span>
                 </Button>
 
                 <Button 
                   variant="outline" 
                   className="flex-1 items-center justify-center space-x-2 py-2"
-                  disabled={isLoading}
+                  disabled={false}
                   onClick={() => handleLogin("google")}
                 >
-                  {isLoading ? (
-                    <div className={`${styles.spinnerSmall}`}></div>
-                  ) : (
-                    <>
-                      <GoogleIcon className="size-4" />
-                      <span className="text-sm font-medium">Login with Google</span>
-                    </>
-                  )}
+                  <GoogleIcon className="size-4" />
+                  <span className="text-sm font-medium">Login with Google</span>
                 </Button>
               </div>
 
@@ -214,12 +262,12 @@ export default function AuthForm() {
                 <Button 
                   type="submit"
                   disabled={!isLoginValid || isLoading}
-                  className={`mt-4 w-full py-2 font-medium ${styles.submitBtn}`}
+                  className={`mt-4 w-full py-2 font-medium ${styles.submitBtn} ${isLoading ? 'opacity-60' : ''}`}
                 >
                   {isLoading ? (
                     <div className="flex items-center justify-center space-x-2">
-                      <div className={`${styles.spinner}`}></div>
-                      <span>Signing in...</span>
+                      <span>Signing in</span>
+                      <div className={styles.spinner}></div>
                     </div>
                   ) : (
                     "Sign in"
