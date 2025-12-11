@@ -224,9 +224,10 @@ export default function AuthForm() {
               <div className="mt-6 flex flex-col items-center space-y-2 sm:flex-row sm:space-x-4 sm:space-y-0">
                 <Button 
                   variant="outline" 
-                  className="flex-1 items-center justify-center space-x-2 py-2"
-                  disabled={false}
+                  className="flex-1 cursor-not-allowed items-center justify-center space-x-2 py-2"
+                  disabled={true}
                   onClick={() => handleLogin("apple")}
+                  
                 >
                   <AppleIcon className="size-5" />
                   <span className="text-sm font-medium">Login with Apple</span>
