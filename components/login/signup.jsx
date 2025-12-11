@@ -2,7 +2,7 @@
 
 import { signup, login } from "@/lib/auth";
 import { getFirebaseAuth } from "@/lib/firebase";
-import { GoogleAuthProvider, OAuthProvider, signInWithPopup } from "firebase/auth";
+import { GoogleAuthProvider, OAuthProvider, signInWithPopup, signInWithRedirect } from "firebase/auth";
 import { useRouter } from "next/navigation";
 
 import { useState } from "react";
@@ -86,8 +86,25 @@ export default function AuthForm() {
         provider = new GoogleAuthProvider();
       } else if (type === "apple") {
         provider = new OAuthProvider("apple.com");
+        // Request common scopes for Apple (email, name)
+        try {
+          provider.addScope('email');
+          provider.addScope('name');
+          provider.setCustomParameters({ locale: 'en' });
+        } catch (e) {
+          // provider.addScope may not be available in some envs; ignore silently
+        }
       }
-      await signInWithPopup(auth, provider);
+      try {
+        await signInWithPopup(auth, provider);
+      } catch (popupError) {
+        // Fall back to redirect if popups are blocked or not supported
+        if (popupError.code === 'auth/popup-blocked' || popupError.code === 'auth/operation-not-supported-in-this-environment' || popupError.code === 'auth/cancelled-popup-request') {
+          await signInWithRedirect(auth, provider);
+        } else {
+          throw popupError;
+        }
+      }
       router.push("/dashboard");
     } catch (error) {
       // Don't show error for cancelled popup
@@ -126,7 +143,7 @@ export default function AuthForm() {
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
           <div key={`logo-${isSignUp}`} className={`flex items-center space-x-1.5 ${styles.logoContainer}`}>
             <Logo className="h-7 w-7 text-foreground dark:text-foreground" />
-            <p className="font-medium text-lg text-foreground dark:text-foreground">Acme</p>
+            <p className="font-medium text-lg text-foreground dark:text-foreground">Pro</p>
           </div>
 
           <h3 key={`title-${isSignUp}`} className={`mt-6 text-lg font-semibold text-foreground dark:text-foreground ${styles.headerTitle}`}>
@@ -152,7 +169,7 @@ export default function AuthForm() {
           {/* Conditional Rendering for Forms */}
           {isSignUp ? (
             // Sign Up Form
-            <form className={`mt-6 space-y-8 ${styles.formEnter}`} onSubmit={(e) => { e.preventDefault(); handleSignUp(); }}>
+            <form className={`mt-6 space-y-2 ${styles.formEnter}`} onSubmit={(e) => { e.preventDefault(); handleSignUp(); }}>
               <div className={styles.fieldGroup}>
                 <Label htmlFor="name" className="text-sm font-medium">Name</Label>
                 <Input 
@@ -228,10 +245,12 @@ export default function AuthForm() {
 
               <div className="relative my-6">
                 <div className="absolute inset-0 flex items-center">
-                  <Separator className="w-full" />
+                  <div className="w-full h-px bg-white/10 rounded" />
                 </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">or</span>
+                <div className="relative flex justify-center">
+                  <span className="inline-flex items-center px-3 py-0.5 rounded-full  text-white/90 text-xs font-semibold shadow-sm">
+                    
+                  </span>
                 </div>
               </div>
 
