@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card";
 import { LogOut } from 'lucide-react';
 import { Separator } from "@/components/ui/separator";
 import { onAuthStateChanged } from "firebase/auth";
-import Component from "@/components/title-status";
+import {StepperFormDemo} from "@/components/title-status";
 
 export default function Dashboard() {
   const router = useRouter();
@@ -58,7 +58,7 @@ export default function Dashboard() {
       </div>
 
       {/* Content */}
-      <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header Section */}
         <div className="bg-gradient-to-b from-white/5 to-transparent backdrop-blur-md border-white/10 p-4 rounded-md">
           <div className="flex items-center justify-between space-x-4">
@@ -100,8 +100,8 @@ export default function Dashboard() {
         {/* Stepper Card */}
         <Card className="bg-white/5 border-white/10 backdrop-blur-sm overflow-hidden">
           <div className="p-6 flex items-center justify-center">
-            <div className="w-full max-w-2xl animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <Component />
+            <div className="w-full max-w-4xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <StepperFormDemo />
             </div>
           </div>
         </Card>
