@@ -1,26 +1,13 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
 import * as React from "react";
-import { getFirebaseAuth } from "@/lib/firebase";
+import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { useForm } from "react-hook-form";
+import { getFirebaseAuth } from "@/lib/firebase";
 import { toast } from "sonner";
-import * as z from "zod";
 
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectTrigger,
@@ -28,354 +15,341 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { FileUpload, FileUploadDropzone, FileUploadList } from "@/components/ui/file-upload";
+import { FileUpload } from "@/components/ui/file-upload";
 
-// --------------------------
-// ZOD VALIDATION
-// --------------------------
-const formSchema = z.object({
-  firstName: z.string().min(1, "First name is required"),
-  phone: z.string().min(7, "Phone is required"),
-  role: z.string().min(1, "Role is required"),
-  email: z.string().email("Please enter a valid email address"),
-  bio: z.string().min(0),
-  company: z.string().min(0),
-  website: z.string().url("Please enter a valid URL").or(z.literal("")),
-  paymentMethod: z.enum(["card", "bank", "cod"]).optional(),
-  cardNumber: z.string().optional(),
-  expiry: z.string().optional(),
-  cvv: z.string().optional(),
-  idDocument: z.any().optional(),
-  profilePhoto: z.any().optional(),
-  notes: z.string().optional(),
-});
-
-// --------------------------
-// CUSTOM STEPS
-// --------------------------
+/* --------------------------
+   STEPS
+-------------------------- */
 const steps = [
-  { value: "personal", title: "User Details", description: "Enter your basic information", fields: ["firstName", "phone", "role", "company"] },
-  { value: "payment", title: "Payment Info", description: "How you'd like to pay", fields: ["paymentMethod", "cardNumber", "expiry", "cvv"] },
-  { value: "documents", title: "Documents", description: "Upload ID and profile photo", fields: ["idDocument"] },
+  {
+    value: "company",
+    title: "Company Details",
+    description: "Business registration information",
+  },
+  {
+    value: "personal",
+    title: "User Details",
+    description: "Enter your basic information",
+  },
+  {
+    value: "payment",
+    title: "Payment Info",
+    description: "How you'd like to pay",
+  },
+  {
+    value: "documents",
+    title: "Documents",
+    description: "Upload documents",
+  },
 ];
 
-// --------------------------
-// COMPONENT
-// --------------------------
+/* --------------------------
+   YEARS
+-------------------------- */
+const years = Array.from(
+  { length: 30 },
+  (_, i) => `${new Date().getFullYear() - i}`
+);
+
+/* --------------------------
+   COMPONENT
+-------------------------- */
 export function StepperFormDemo() {
-  const [step, setStep] = React.useState(0); // index instead of string step
-  const form = useForm({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      firstName: "",
-      phone: "",
-      role: "",
-      email: "",
-      bio: "",
-      company: "",
-      website: "",
-      paymentMethod: "card",
-      cardNumber: "",
-      expiry: "",
-      cvv: "",
-      idDocument: null,
-      profilePhoto: null,
-      notes: "",
-    },
+  const [step, setStep] = useState(0);
+
+  const [form, setForm] = useState({
+    companyName: "",
+    tin: "",
+    description: "",
+    brelaName: "",
+    businessLicenceYear: "",
+    location: "",
+    contact: "",
+    companyEmail: "",
+
+    firstName: "",
+    phone: "",
+    role: "",
+    email: "",
+
+    paymentMethod: "card",
+    cardNumber: "",
+    expiry: "",
+    cvv: "",
   });
 
-  const current = steps[step];
+  const update = (key, value) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
 
-  React.useEffect(() => {
+  /* Autofill from Firebase */
+  useEffect(() => {
     const auth = getFirebaseAuth();
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsub = onAuthStateChanged(auth, (user) => {
       if (user) {
-        const name = (user.displayName || "").split(" ")[0] || "";
-        form.setValue("firstName", name);
-        if (user.email) form.setValue("email", user.email);
+        update("email", user.email || "");
+        update("firstName", (user.displayName || "").split(" ")[0] || "");
       }
     });
+    return () => unsub();
+  }, []);
 
-    return () => unsubscribe();
-  }, [form]);
-
-  // Validation before moving next
-  async function nextStep() {
-    let fieldsToValidate = current.fields;
-    if (current.value === "payment") {
-      const pm = form.getValues("paymentMethod");
-      if (pm === "card") {
-        fieldsToValidate = ["paymentMethod", "cardNumber", "expiry", "cvv"];
-      } else {
-        fieldsToValidate = ["paymentMethod"];
+  /* --------------------------
+     VALIDATION
+  -------------------------- */
+  function validateStep() {
+    if (step === 0) {
+      if (
+        !form.companyName ||
+        !form.tin ||
+        !form.brelaName ||
+        !form.businessLicenceYear ||
+        !form.location
+      ) {
+        toast.info("Please complete company details");
+        return false;
       }
     }
 
-    const valid = await form.trigger(fieldsToValidate);
-
-    if (!valid) {
-      toast.info("Please complete all required fields to continue");
-      return;
+    if (step === 1) {
+      if (!form.firstName || !form.phone || !form.role || !form.email) {
+        toast.info("Please complete user details");
+        return false;
+      }
     }
 
-    setStep((prev) => Math.min(prev + 1, steps.length - 1));
+    if (step === 2 && form.paymentMethod === "card") {
+      if (!form.cardNumber || !form.expiry || !form.cvv) {
+        toast.info("Please complete card details");
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  function nextStep() {
+    if (!validateStep()) return;
+    setStep((s) => Math.min(s + 1, steps.length - 1));
   }
 
   function prevStep() {
-    setStep((prev) => prev - 1);
+    setStep((s) => Math.max(s - 1, 0));
   }
 
-  const onSubmit = (data) => {
-    toast.success(<pre>{JSON.stringify(data, null, 2)}</pre>);
-  };
+  function onSubmit(e) {
+    e.preventDefault();
+    toast.success("Form submitted successfully");
+    console.log("FORM DATA:", form);
+  }
 
   return (
-    <Form {...form}>
-      <form className="w-full" onSubmit={form.handleSubmit(onSubmit)}>
+    <form onSubmit={onSubmit} className="w-full">
 
-        {/* -------------------------- */}
-        {/* TOP STEP INDICATORS */}
-        {/* -------------------------- */}
-        <div className="flex items-center gap-6 justify-center mb-6">
-
-          {steps.map((s, i) => (
+      {/* STEPPER */}
+      <div className="flex items-center justify-center gap-6 mb-6">
+        {steps.map((s, i) => (
+          <div key={s.value} className="flex items-center gap-2">
             <div
-              key={s.value}
-              className="flex items-center gap-2 cursor-pointer"
-              onClick={() => setStep(i)}
+              className={`size-8 rounded-full flex items-center justify-center border text-sm
+              ${
+                i === step
+                  ? "bg-white text-black"
+                  : i < step
+                  ? "bg-green-500 text-white"
+                  : "text-muted-foreground"
+              }`}
             >
-              <div
-                className={`size-8 flex items-center justify-center rounded-full border text-sm transition-all
-                  ${
-                    i === step
-                      ? "bg-white text-black"
-                      : i < step
-                      ? "bg-green-500 text-white"
-                      : "border-muted-foreground text-muted-foreground"
-                  }
-                `}
-              >
-                {i + 1}
-              </div>
-
-              <div className="flex flex-col">
-                <div className="font-semibold">{s.title}</div>
-                <div className="text-sm text-muted-foreground">
-                  {s.description}
-                </div>
-              </div>
-
-              {i < steps.length - 1 && (
-                <div
-                  className={`h-[2px] w-14 rounded 
-                    ${i < step ? "bg-green-500" : "bg-muted-foreground/20"}
-                  `}
-                />
-              )}
+              {i + 1}
             </div>
-          ))}
+            <div>
+              <div className="font-semibold">{s.title}</div>
+              <div className="text-xs text-muted-foreground">
+                {s.description}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* STEP 0: COMPANY */}
+      {step === 0 && (
+        <div className="flex flex-col gap-4">
+
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              placeholder="Company Name"
+              value={form.companyName}
+              onChange={(e) => update("companyName", e.target.value)}
+            />
+            <Input
+              placeholder="TIN"
+              value={form.tin}
+              onChange={(e) => update("tin", e.target.value)}
+            />
+          </div>
+
+          <textarea
+            className="min-h-[90px] rounded-md border px-3 py-2 text-sm"
+            placeholder="Description"
+            value={form.description}
+            onChange={(e) => update("description", e.target.value)}
+          />
+
+          <div className="grid grid-cols-3 gap-4">
+            <Input
+              placeholder="BRELA"
+              value={form.brelaName}
+              onChange={(e) => update("brelaName", e.target.value)}
+            />
+
+            <Select
+              value={form.businessLicenceYear}
+              onValueChange={(v) => update("businessLicenceYear", v)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select Year" />
+              </SelectTrigger>
+              <SelectContent>
+                {years.map((y) => (
+                  <SelectItem key={y} value={y}>
+                    {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Input
+              placeholder="Location"
+              value={form.location}
+              onChange={(e) => update("location", e.target.value)}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              placeholder="Contact"
+              value={form.contact}
+              onChange={(e) => update("contact", e.target.value)}
+            />
+            <Input
+              placeholder="Email"
+              value={form.companyEmail}
+              onChange={(e) => update("companyEmail", e.target.value)}
+            />
+          </div>
         </div>
+      )}
 
-        {/* -------------------------- */}
-        {/* STEP CONTENT */}
-        {/* -------------------------- */}
+      {/* STEP 1: USER */}
+      {step === 1 && (
+        <div className="flex flex-col gap-4">
 
-        {step === 0 && (
-          <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="firstName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>First Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="John" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phone</FormLabel>
-                    <FormControl>
-                      <Input placeholder="+1 555 123 4567" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input placeholder="john@example.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              placeholder="First Name"
+              value={form.firstName}
+              onChange={(e) => update("firstName", e.target.value)}
             />
-
-            <div className="grid grid-cols-2 gap-4 mt-2">
-              <FormField
-                control={form.control}
-                name="role"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Role</FormLabel>
-                    <FormControl>
-                      <Select onValueChange={(val) => field.onChange(val)} value={field.value}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select Role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="staff">Staff</SelectItem>
-                          <SelectItem value="supplier">Supplier</SelectItem>
-                          <SelectItem value="manager">Manager</SelectItem>
-                          <SelectItem value="contractor">Contractor</SelectItem>
-                          <SelectItem value="distributor">Distributor</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="company"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Company</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Company name (optional)" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
-        )}
-
-        {step === 1 && (
-          <div className="flex flex-col gap-4">
-            <FormField
-              control={form.control}
-              name="paymentMethod"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Payment Method</FormLabel>
-                  <FormControl>
-                    <Select onValueChange={(val) => field.onChange(val)} value={field.value}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select method" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="card">Card</SelectItem>
-                        <SelectItem value="bank">Bank Transfer</SelectItem>
-                        <SelectItem value="cod">Cash on Delivery</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+            <Input
+              placeholder="Phone"
+              value={form.phone}
+              onChange={(e) => update("phone", e.target.value)}
             />
-
-            {/* Conditional card inputs */}
-            {form.getValues("paymentMethod") === "card" && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <FormField
-                  control={form.control}
-                  name="cardNumber"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Card number</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="**** **** **** ****" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="expiry"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Expiry</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="MM/YY" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="cvv"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>CVV</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="123" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            )}
           </div>
-        )}
 
-        {step === 2 && (
-          <div className="flex flex-col gap-4">
-            <FileUpload/>
-          </div>
-        )}
+          <Input
+            placeholder="Email"
+            value={form.email}
+            onChange={(e) => update("email", e.target.value)}
+          />
 
-        
-
-        {/* -------------------------- */}
-        {/* BUTTONS */}
-        {/* -------------------------- */}
-
-        <div className="mt-6 flex justify-between items-center">
-          <Button
-            variant="outline"
-            onClick={prevStep}
-            disabled={step === 0}
+          <Select
+            value={form.role}
+            onValueChange={(v) => update("role", v)}
           >
-            Previous
-          </Button>
+            <SelectTrigger>
+              <SelectValue placeholder="Select role" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="staff">Staff</SelectItem>
+              <SelectItem value="supplier">Supplier</SelectItem>
+              <SelectItem value="manager">Manager</SelectItem>
+              <SelectItem value="distributor">Distributor</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
-          <div className="text-sm text-muted-foreground">
-            Step {step + 1} of {steps.length}
-          </div>
+      {/* STEP 2: PAYMENT */}
+      {step === 2 && (
+        <div className="flex flex-col gap-4">
 
-          {step === steps.length - 1 ? (
-            <Button type="submit">Complete</Button>
-          ) : (
-            <Button onClick={nextStep}>Next</Button>
+          <Select
+            value={form.paymentMethod}
+            onValueChange={(v) => update("paymentMethod", v)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="card">Card</SelectItem>
+              <SelectItem value="bank">Bank Transfer</SelectItem>
+              <SelectItem value="cod">Cash</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {form.paymentMethod === "card" && (
+            <div className="grid grid-cols-3 gap-4">
+              <Input
+                placeholder="Card Number"
+                value={form.cardNumber}
+                onChange={(e) => update("cardNumber", e.target.value)}
+              />
+              <Input
+                placeholder="Expiry"
+                value={form.expiry}
+                onChange={(e) => update("expiry", e.target.value)}
+              />
+              <Input
+                placeholder="CVV"
+                value={form.cvv}
+                onChange={(e) => update("cvv", e.target.value)}
+              />
+            </div>
           )}
         </div>
-      </form>
-    </Form>
+      )}
+
+      {/* STEP 3: DOCUMENTS */}
+      {step === 3 && (
+        <div className="flex flex-col gap-4">
+          <FileUpload />
+        </div>
+      )}
+
+      {/* BUTTONS */}
+      <div className="mt-6 flex justify-between items-center">
+        <Button
+          type="button"
+          variant="outline"
+          disabled={step === 0}
+          onClick={prevStep}
+        >
+          Previous
+        </Button>
+
+        <div className="text-sm text-muted-foreground">
+          Step {step + 1} of {steps.length}
+        </div>
+
+        {step === steps.length - 1 ? (
+          <Button type="submit">Complete</Button>
+        ) : (
+          <Button type="button" onClick={nextStep}>
+            Next
+          </Button>
+        )}
+      </div>
+    </form>
   );
 }
-
-
