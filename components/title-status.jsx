@@ -3,7 +3,8 @@
 import * as React from "react";
 import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp, getDoc } from "firebase/firestore";
+import { useRouter } from "next/navigation";
 
 import { getFirebaseAuth, getFirestoreDB } from "@/lib/firebase";
 import { toast } from "sonner";
@@ -37,7 +38,9 @@ const years = Array.from({ length: 30 }, (_, i) => `${new Date().getFullYear() -
 export function StepperFormDemo() {
   const [step, setStep] = useState(0);
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(false);
   const db = getFirestoreDB();
+  const router = useRouter();
 
   const [form, setForm] = useState({
     /* COMPANY */
@@ -62,6 +65,8 @@ export function StepperFormDemo() {
     cardNumber: "",
     expiry: "",
     cvv: "",
+    bankName: "",
+    bankAccount: "",
   });
 
   const update = (k, v) => setForm((p) => ({ ...p, [k]: v }));
@@ -86,10 +91,14 @@ export function StepperFormDemo() {
     setStep((s) => Math.max(s - 1, 0));
   }
 
-  /* SUBMIT → FIRESTORE */
+  /* --------------------------
+     SUBMIT → FIRESTORE
+  -------------------------- */
   async function onSubmit(e) {
     e.preventDefault();
     if (!user) return toast.error("Not authenticated");
+
+    setLoading(true);
 
     try {
       const uid = user.uid;
@@ -102,6 +111,7 @@ export function StepperFormDemo() {
         email: form.email,
         role: form.role,
         birthday: form.birthday,
+        pending: true, // pending approval
         createdAt: serverTimestamp(),
       });
 
@@ -124,6 +134,8 @@ export function StepperFormDemo() {
         uid,
         paymentMethod: form.paymentMethod,
         cardLast4: form.cardNumber?.slice(-4) || "",
+        bankName: form.bankName || "",
+        bankAccount: form.bankAccount || "",
         createdAt: serverTimestamp(),
       });
 
@@ -134,12 +146,30 @@ export function StepperFormDemo() {
         createdAt: serverTimestamp(),
       });
 
-      toast.success("Registration completed 🎉");
-      console.log("Saved:", form);
+      // Show pending overlay until approved
+      const unsubscribe = setInterval(async () => {
+        const userDoc = await getDoc(doc(db, "users", uid));
+        if (userDoc.exists() && !userDoc.data().pending) {
+          clearInterval(unsubscribe);
+          router.push("/");
+        }
+      }, 3000);
     } catch (err) {
       console.error(err);
       toast.error("Submission failed");
+      setLoading(false);
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
+        <div className="bg-white p-8 rounded-lg text-center">
+          <h1 className="text-xl font-bold mb-4">Pending approval...</h1>
+          <p>Please wait while your registration is approved by admin.</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -210,9 +240,10 @@ export function StepperFormDemo() {
             <Input placeholder="Phone" value={form.phone} onChange={(e) => update("phone", e.target.value)} />
           </div>
 
-          {/* EMAIL + ROLE (same row) */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* EMAIL + BIRTHDAY + ROLE (one row) */}
+          <div className="grid grid-cols-3 gap-4">
             <Input placeholder="Email" value={form.email} onChange={(e) => update("email", e.target.value)} />
+            <Input type="date" placeholder="Birthday" value={form.birthday} onChange={(e) => update("birthday", e.target.value)} />
             <Select value={form.role} onValueChange={(v) => update("role", v)}>
               <SelectTrigger><SelectValue placeholder="Role" /></SelectTrigger>
               <SelectContent>
@@ -222,12 +253,6 @@ export function StepperFormDemo() {
                 <SelectItem value="distributor">Distributor</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-
-          {/* BIRTHDAY (same row with first name) */}
-          <div className="grid grid-cols-2 gap-4">
-            <Input type="date" placeholder="Birthday" value={form.birthday} onChange={(e) => update("birthday", e.target.value)} />
-            <div></div> {/* empty placeholder to keep the row structure */}
           </div>
         </div>
       )}
@@ -239,10 +264,26 @@ export function StepperFormDemo() {
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="card">Card</SelectItem>
-              <SelectItem value="bank">Bank</SelectItem>
-              <SelectItem value="cash">Cash</SelectItem>
+              <SelectItem value="bank">Bank Transfer</SelectItem>
+              <SelectItem value="cash">Cash on Delivery</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* Conditional fields */}
+          {form.paymentMethod === "card" && (
+            <div className="grid grid-cols-3 gap-4">
+              <Input placeholder="Card Number" value={form.cardNumber} onChange={(e) => update("cardNumber", e.target.value)} />
+              <Input placeholder="Expiry" value={form.expiry} onChange={(e) => update("expiry", e.target.value)} />
+              <Input placeholder="CVV" value={form.cvv} onChange={(e) => update("cvv", e.target.value)} />
+            </div>
+          )}
+
+          {form.paymentMethod === "bank" && (
+            <div className="grid grid-cols-2 gap-4">
+              <Input placeholder="Bank Name" value={form.bankName} onChange={(e) => update("bankName", e.target.value)} />
+              <Input placeholder="Account Number" value={form.bankAccount} onChange={(e) => update("bankAccount", e.target.value)} />
+            </div>
+          )}
         </div>
       )}
 
