@@ -1,101 +1,289 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { onAuthStateChanged, sendEmailVerification } from "firebase/auth";
-import { doc, setDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
-import { useRouter } from "next/navigation";
-
+import * as React from "react";
+import { useEffect, useState } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { getFirebaseAuth, getFirestoreDB } from "@/lib/firebase";
-import { Button, Input, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui";
-import { FileUpload } from "@/components/ui/file-upload";
 import { toast } from "sonner";
 
-export function StepperFormDemo() {
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+
+/* --------------------------
+   STEPS
+-------------------------- */
+const steps = [
+  { value: "company", title: "Company Details", description: "Business info" },
+  { value: "user", title: "User Details", description: "Personal info" },
+  { value: "payment", title: "Payment Info", description: "Payment setup" },
+  { value: "documents", title: "Documents", description: "Upload documents" },
+];
+
+/* --------------------------
+   YEARS
+-------------------------- */
+const years = Array.from(
+  { length: 30 },
+  (_, i) => `${new Date().getFullYear() - i}`
+);
+
+export default function StepperFormDemo() {
   const [step, setStep] = useState(0);
-  const [form, setForm] = useState({ /* all fields here... */ });
   const [user, setUser] = useState(null);
-  const [overlay, setOverlay] = useState(false);
-  const db = getFirestoreDB();
-  const auth = getFirebaseAuth();
-  const router = useRouter();
+  const [loading, setLoading] = useState(false);
 
-  const update = (k, v) => setForm(p => ({ ...p, [k]: v }));
+  const [form, setForm] = useState({
+    /* COMPANY */
+    companyName: "",
+    tin: "",
+    description: "",
+    brelaName: "",
+    businessLicenceYear: "",
+    location: "",
+    contact: "",
+    companyEmail: "",
 
+    /* USER */
+    firstName: "",
+    phone: "",
+    email: "",
+    role: "",
+    birthday: "",
+
+    /* PAYMENT */
+    paymentMethod: "card",
+    cardNumber: "",
+    expiry: "",
+    cvv: "",
+    bankAccount: "",
+  });
+
+  const update = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+
+  /* AUTH */
   useEffect(() => {
-    return onAuthStateChanged(auth, async (u) => {
+    const auth = getFirebaseAuth();
+    return onAuthStateChanged(auth, (u) => {
       if (u) {
         setUser(u);
-
-        const userDocRef = doc(db, "users", u.uid);
-        const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
-          const data = docSnap.data();
-          if (data?.approved) setOverlay(false);
-          else if (data?.pending) setOverlay(true);
-        });
-
-        // pre-fill email and firstName
-        update("email", u.email);
+        update("email", u.email || "");
         update("firstName", u.displayName?.split(" ")[0] || "");
-
-        // auto-send verification email if not verified
-        if (!u.emailVerified) {
-          sendEmailVerification(u);
-          toast("Check your email to verify account!");
-        }
-
-        return () => unsubscribe();
-      } else {
-        router.push("/login"); // protect root page if not logged in
       }
     });
   }, []);
 
+  /* NAVIGATION */
+  function nextStep() {
+    setStep((s) => Math.min(s + 1, steps.length - 1));
+  }
+  function prevStep() {
+    setStep((s) => Math.max(s - 1, 0));
+  }
+
+  /* SUBMIT → FIRESTORE */
   async function onSubmit(e) {
     e.preventDefault();
     if (!user) return toast.error("Not authenticated");
 
-    setOverlay(true);
-
-    const uid = user.uid;
+    setLoading(true);
 
     try {
-      // Users collection
+      const uid = user.uid;
+      const db = getFirestoreDB();
+
+      /* USERS COLLECTION */
       await setDoc(doc(db, "users", uid), {
         uid,
-        ...form,
-        pending: true,
-        approved: false,
-        profileComplete: true,
+        firstName: form.firstName,
+        phone: form.phone,
+        email: form.email,
+        role: form.role,
+        birthday: form.birthday,
+        approved: false, // pending approval
         createdAt: serverTimestamp(),
       });
 
-      // Companies, Payments, Documents collection...
-      // ...
+      /* COMPANIES COLLECTION */
+      await setDoc(doc(db, "companies", uid), {
+        uid,
+        companyName: form.companyName,
+        tin: form.tin,
+        description: form.description,
+        brelaName: form.brelaName,
+        businessLicenceYear: form.businessLicenceYear,
+        location: form.location,
+        contact: form.contact,
+        companyEmail: form.companyEmail,
+        createdAt: serverTimestamp(),
+      });
 
-      toast.success("Registration submitted! Check email for approval link.");
+      /* PAYMENTS COLLECTION */
+      await setDoc(doc(db, "payments", uid), {
+        uid,
+        paymentMethod: form.paymentMethod,
+        cardLast4: form.cardNumber.slice(-4) || "",
+        bankAccount: form.bankAccount || "",
+        createdAt: serverTimestamp(),
+      });
 
+      /* DOCUMENTS COLLECTION */
+      await setDoc(doc(db, "documents", uid), {
+        uid,
+        uploaded: false,
+        createdAt: serverTimestamp(),
+      });
+
+      toast.success("Registration completed, pending approval 🎉");
     } catch (err) {
       console.error(err);
       toast.error("Submission failed");
-      setOverlay(false);
+    } finally {
+      setLoading(false);
     }
   }
 
-  if (overlay) {
-    return (
-      <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
-        <div className="bg-white p-10 rounded-md text-center">
-          <h2 className="text-xl font-bold mb-4">Pending approval...</h2>
-          <p>We have sent an email verification link. Please verify and wait for admin approval.</p>
-        </div>
-      </div>
-    );
-  }
+  /* --------------------------
+     CONDITIONAL PAYMENT FIELDS
+  -------------------------- */
+  const showCardFields = form.paymentMethod === "card";
+  const showBankFields = form.paymentMethod === "bank";
 
   return (
-    <form onSubmit={onSubmit} className="w-full">
-      {/* STEPPER + fields as before */}
-      <Button type="submit">Submit</Button>
+    <form onSubmit={onSubmit} className="w-full relative">
+      {/* FULL PAGE LOADING */}
+      {loading && (
+        <div className="absolute inset-0 bg-black/40 z-50 flex flex-col items-center justify-center text-white text-2xl font-bold">
+          Pending approval...
+        </div>
+      )}
+
+      {/* STEPPER */}
+      <div className="flex items-center justify-center gap-6 mb-6">
+        {steps.map((s, i) => (
+          <div key={s.value} className="flex items-center gap-2">
+            <div
+              className={`w-8 h-8 rounded-full flex items-center justify-center border
+              ${
+                i === step
+                  ? "bg-white text-black"
+                  : i < step
+                  ? "bg-green-500 text-white"
+                  : "text-muted-foreground"
+              }`}
+            >
+              {i + 1}
+            </div>
+            <div>
+              <div className="font-semibold">{s.title}</div>
+              <div className="text-xs text-muted-foreground">{s.description}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* STEP 0: COMPANY */}
+      {step === 0 && (
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-4">
+            <Input placeholder="Company Name" value={form.companyName} onChange={(e) => update("companyName", e.target.value)} />
+            <Input placeholder="TIN" value={form.tin} onChange={(e) => update("tin", e.target.value)} />
+          </div>
+
+          <textarea className="border rounded-md p-2" placeholder="Description" value={form.description} onChange={(e) => update("description", e.target.value)} />
+
+          <div className="grid grid-cols-3 gap-4">
+            <Input placeholder="BRELA" value={form.brelaName} onChange={(e) => update("brelaName", e.target.value)} />
+            <Select value={form.businessLicenceYear} onValueChange={(v) => update("businessLicenceYear", v)}>
+              <SelectTrigger><SelectValue placeholder="Licence Year" /></SelectTrigger>
+              <SelectContent>
+                {years.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Input placeholder="Location" value={form.location} onChange={(e) => update("location", e.target.value)} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Input placeholder="Contact" value={form.contact} onChange={(e) => update("contact", e.target.value)} />
+            <Input placeholder="Company Email" value={form.companyEmail} onChange={(e) => update("companyEmail", e.target.value)} />
+          </div>
+        </div>
+      )}
+
+      {/* STEP 1: USER */}
+      {step === 1 && (
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-4">
+            <Input placeholder="First Name" value={form.firstName} onChange={(e) => update("firstName", e.target.value)} />
+            <Input placeholder="Phone" value={form.phone} onChange={(e) => update("phone", e.target.value)} />
+          </div>
+
+          {/* EMAIL + ROLE + BIRTHDAY */}
+          <div className="grid grid-cols-3 gap-4">
+            <Input placeholder="Email" value={form.email} onChange={(e) => update("email", e.target.value)} />
+            <Select value={form.role} onValueChange={(v) => update("role", v)}>
+              <SelectTrigger><SelectValue placeholder="Role" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="staff">Staff</SelectItem>
+                <SelectItem value="supplier">Supplier</SelectItem>
+                <SelectItem value="manager">Manager</SelectItem>
+                <SelectItem value="distributor">Distributor</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input type="date" value={form.birthday} onChange={(e) => update("birthday", e.target.value)} />
+          </div>
+        </div>
+      )}
+
+      {/* STEP 2: PAYMENT */}
+      {step === 2 && (
+        <div className="flex flex-col gap-4">
+          <Select value={form.paymentMethod} onValueChange={(v) => update("paymentMethod", v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="card">Card</SelectItem>
+              <SelectItem value="bank">Bank Transfer</SelectItem>
+              <SelectItem value="cash">Cash on Delivery</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {showCardFields && (
+            <div className="grid grid-cols-3 gap-4">
+              <Input placeholder="Card Number" value={form.cardNumber} onChange={(e) => update("cardNumber", e.target.value)} />
+              <Input placeholder="Expiry" value={form.expiry} onChange={(e) => update("expiry", e.target.value)} />
+              <Input placeholder="CVV" value={form.cvv} onChange={(e) => update("cvv", e.target.value)} />
+            </div>
+          )}
+
+          {showBankFields && (
+            <Input placeholder="Bank Account Number" value={form.bankAccount} onChange={(e) => update("bankAccount", e.target.value)} />
+          )}
+        </div>
+      )}
+
+      {/* STEP 3: DOCUMENTS */}
+      {step === 3 && (
+        <div className="flex flex-col gap-4">
+          <Input type="file" onChange={(e) => console.log(e.target.files)} />
+        </div>
+      )}
+
+      {/* BUTTONS */}
+      <div className="mt-6 flex justify-between">
+        <Button type="button" variant="outline" disabled={step === 0} onClick={prevStep}>Previous</Button>
+        {step === steps.length - 1 ? (
+          <Button type="submit">Complete</Button>
+        ) : (
+          <Button type="button" onClick={nextStep}>Next</Button>
+        )}
+      </div>
     </form>
   );
 }
