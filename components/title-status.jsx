@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
-import { getFirebaseAuth, db } from "@/lib/firebase";
+import { getFirebaseAuth, getFirestoreDB } from "@/lib/firebase";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -32,14 +32,12 @@ const steps = [
 /* --------------------------
    YEARS
 -------------------------- */
-const years = Array.from(
-  { length: 30 },
-  (_, i) => `${new Date().getFullYear() - i}`
-);
+const years = Array.from({ length: 30 }, (_, i) => `${new Date().getFullYear() - i}`);
 
 export function StepperFormDemo() {
   const [step, setStep] = useState(0);
   const [user, setUser] = useState(null);
+  const db = getFirestoreDB();
 
   const [form, setForm] = useState({
     /* COMPANY */
@@ -66,8 +64,7 @@ export function StepperFormDemo() {
     cvv: "",
   });
 
-  const update = (k, v) =>
-    setForm((p) => ({ ...p, [k]: v }));
+  const update = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
   /* AUTH */
   useEffect(() => {
@@ -81,9 +78,7 @@ export function StepperFormDemo() {
     });
   }, []);
 
-  /* --------------------------
-     NAV
-  -------------------------- */
+  /* NAVIGATION */
   function nextStep() {
     setStep((s) => Math.min(s + 1, steps.length - 1));
   }
@@ -91,9 +86,7 @@ export function StepperFormDemo() {
     setStep((s) => Math.max(s - 1, 0));
   }
 
-  /* --------------------------
-     SUBMIT → FIRESTORE
-  -------------------------- */
+  /* SUBMIT → FIRESTORE */
   async function onSubmit(e) {
     e.preventDefault();
     if (!user) return toast.error("Not authenticated");
@@ -130,11 +123,11 @@ export function StepperFormDemo() {
       await setDoc(doc(db, "payments", uid), {
         uid,
         paymentMethod: form.paymentMethod,
-        cardLast4: form.cardNumber.slice(-4),
+        cardLast4: form.cardNumber?.slice(-4) || "",
         createdAt: serverTimestamp(),
       });
 
-      /* DOCUMENTS COLLECTION (READY) */
+      /* DOCUMENTS COLLECTION */
       await setDoc(doc(db, "documents", uid), {
         uid,
         uploaded: false,
@@ -170,9 +163,7 @@ export function StepperFormDemo() {
             </div>
             <div>
               <div className="font-semibold">{s.title}</div>
-              <div className="text-xs text-muted-foreground">
-                {s.description}
-              </div>
+              <div className="text-xs text-muted-foreground">{s.description}</div>
             </div>
           </div>
         ))}
@@ -186,8 +177,12 @@ export function StepperFormDemo() {
             <Input placeholder="TIN" value={form.tin} onChange={(e) => update("tin", e.target.value)} />
           </div>
 
-          <textarea className="border rounded-md p-2" placeholder="Description"
-            value={form.description} onChange={(e) => update("description", e.target.value)} />
+          <textarea
+            className="border rounded-md p-2"
+            placeholder="Description"
+            value={form.description}
+            onChange={(e) => update("description", e.target.value)}
+          />
 
           <div className="grid grid-cols-3 gap-4">
             <Input placeholder="BRELA" value={form.brelaName} onChange={(e) => update("brelaName", e.target.value)} />
@@ -215,7 +210,7 @@ export function StepperFormDemo() {
             <Input placeholder="Phone" value={form.phone} onChange={(e) => update("phone", e.target.value)} />
           </div>
 
-          {/* EMAIL + ROLE */}
+          {/* EMAIL + ROLE (same row) */}
           <div className="grid grid-cols-2 gap-4">
             <Input placeholder="Email" value={form.email} onChange={(e) => update("email", e.target.value)} />
             <Select value={form.role} onValueChange={(v) => update("role", v)}>
@@ -229,12 +224,11 @@ export function StepperFormDemo() {
             </Select>
           </div>
 
-          {/* BIRTHDAY ROW */}
-          <Input
-            type="date"
-            value={form.birthday}
-            onChange={(e) => update("birthday", e.target.value)}
-          />
+          {/* BIRTHDAY (same row with first name) */}
+          <div className="grid grid-cols-2 gap-4">
+            <Input type="date" placeholder="Birthday" value={form.birthday} onChange={(e) => update("birthday", e.target.value)} />
+            <div></div> {/* empty placeholder to keep the row structure */}
+          </div>
         </div>
       )}
 
