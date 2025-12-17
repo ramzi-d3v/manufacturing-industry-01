@@ -237,28 +237,22 @@ export function StepperFormDemo() {
       {/* STEP 4: DOCUMENTS */}
       {step === 3 && <FileUpload />}
 
-      {step === "pending" && (
-  <div className="flex flex-col items-center justify-center gap-4 p-6 bg-white rounded-md shadow-md">
-    <h2 className="text-lg font-semibold">Pending Email Verification</h2>
-    <p className="text-sm text-muted-foreground text-center">
-      We've sent a verification link to your email. Please check your inbox and click the link to verify your account.
-    </p>
-    <Button
-      onClick={async () => {
-        const auth = getFirebaseAuth();
-        await auth.currentUser.reload(); // refresh user data
-        if (auth.currentUser.emailVerified) {
-          toast.success("Email verified! Redirecting...");
-          router.push("/dashboard");
-        } else {
-          toast.error("Email not verified yet. Please check your inbox.");
-        }
-      }}
-    >
-      I have verified my email
-    </Button>
+    {step === "pending" && (
+  <div className="fixed inset-0 flex items-center justify-center bg-black/30 z-50">
+    <div className="flex flex-col items-center gap-4 p-6  rounded-md shadow-md backdrop-blur-sm">
+      <div className="flex items-center justify-center space-x-3">
+        <div className="w-6 h-6 border-4 border-t-blue-500 border-gray-300 rounded-full animate-spin"></div>
+        <span className="text-sm font-medium">Waiting for email verification...</span>
+      </div>
+      <h2 className="text-lg font-semibold">Pending Email Verification</h2>
+      <p className="text-sm text-muted-foreground text-center">
+        We've sent a verification link to your email. Please check your inbox and click the link to verify your account.
+      </p>
+      
+    </div>
   </div>
 )}
+
 
 
       {/* BUTTONS */}
