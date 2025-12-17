@@ -237,21 +237,35 @@ export function StepperFormDemo() {
       {/* STEP 4: DOCUMENTS */}
       {step === 3 && <FileUpload />}
 
-    {step === "pending" && (
+   {step === "pending" && (
   <div className="fixed inset-0 flex items-center justify-center bg-black/30 z-50">
-    <div className="flex flex-col items-center gap-4 p-6  rounded-md shadow-md backdrop-blur-sm">
-      <div className="flex items-center justify-center space-x-3">
-        <div className="w-6 h-6 border-4 border-t-blue-500 border-gray-300 rounded-full animate-spin"></div>
-        <span className="text-sm font-medium">Waiting for email verification...</span>
+    <div className="flex flex-col items-center gap-6 p-8  rounded-lg shadow-lg backdrop-blur-lg">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-16 h-16 border-8 border-t-blue-500 border-gray-300 rounded-full animate-spin"></div>
+        <span className="text-base font-medium">Waiting for email verification...</span>
       </div>
-      <h2 className="text-lg font-semibold">Pending Email Verification</h2>
-      <p className="text-sm text-muted-foreground text-center">
+      <h2 className="text-xl font-semibold text-center">Pending Email Verification</h2>
+      <p className="text-sm text-muted-foreground text-center max-w-xs">
         We've sent a verification link to your email. Please check your inbox and click the link to verify your account.
       </p>
-      
+      <Button
+        onClick={async () => {
+          const auth = getFirebaseAuth();
+          await auth.currentUser.reload();
+          if (auth.currentUser.emailVerified) {
+            toast.success("Email verified! Redirecting...");
+            router.push("/dashboard");
+          } else {
+            toast.error("Email not verified yet. Please check your inbox.");
+          }
+        }}
+      >
+        I have verified my email
+      </Button>
     </div>
   </div>
 )}
+
 
 
 
