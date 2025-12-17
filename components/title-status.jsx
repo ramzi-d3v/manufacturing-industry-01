@@ -88,59 +88,33 @@ export function StepperFormDemo() {
 
   /* SUBMIT → FIRESTORE */
   async function onSubmit(e) {
-    e.preventDefault();
-    if (!user) return toast.error("Not authenticated");
+  e.preventDefault();
+  if (!user) return toast.error("Not authenticated");
 
-    try {
-      const uid = user.uid;
+  try {
+    const uid = user.uid;
 
-      /* USERS COLLECTION */
-      await setDoc(doc(db, "users", uid), {
-        uid,
-        firstName: form.firstName,
-        phone: form.phone,
-        email: form.email,
-        role: form.role,
-        birthday: form.birthday,
-        createdAt: serverTimestamp(),
-      });
+    // Save user, company, payment, documents as before
+    await setDoc(doc(db, "users", uid), { ...form, createdAt: serverTimestamp() });
+    await setDoc(doc(db, "companies", uid), { ...form, createdAt: serverTimestamp() });
+    await setDoc(doc(db, "payments", uid), {
+      uid,
+      paymentMethod: form.paymentMethod,
+      cardLast4: form.cardNumber?.slice(-4) || "",
+      createdAt: serverTimestamp(),
+    });
+    await setDoc(doc(db, "documents", uid), { uid, uploaded: false, createdAt: serverTimestamp() });
 
-      /* COMPANIES COLLECTION */
-      await setDoc(doc(db, "companies", uid), {
-        uid,
-        companyName: form.companyName,
-        tin: form.tin,
-        description: form.description,
-        brelaName: form.brelaName,
-        businessLicenceYear: form.businessLicenceYear,
-        location: form.location,
-        contact: form.contact,
-        companyEmail: form.companyEmail,
-        createdAt: serverTimestamp(),
-      });
+    toast.success("Registration completed! Check your email to verify.");
 
-      /* PAYMENTS COLLECTION */
-      await setDoc(doc(db, "payments", uid), {
-        uid,
-        paymentMethod: form.paymentMethod,
-        cardLast4: form.cardNumber?.slice(-4) || "",
-        createdAt: serverTimestamp(),
-      });
-
-      /* DOCUMENTS COLLECTION */
-      await setDoc(doc(db, "documents", uid), {
-        uid,
-        uploaded: false,
-        createdAt: serverTimestamp(),
-      });
-
-      toast.success("Registration completed 🎉");
-      console.log("Saved:", form);
-    } catch (err) {
-      console.error(err);
-      toast.error("Submission failed");
-    }
+    // Show pending verification page
+    setStep("pending");
+  } catch (err) {
+    console.error(err);
+    toast.error("Submission failed");
   }
+}
+
 
   return (
     <form onSubmit={onSubmit} className="w-full">
@@ -202,52 +176,90 @@ export function StepperFormDemo() {
         </div>
       )}
 
-      {/* STEP 2: USER */}
-      {step === 1 && (
-        <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Input placeholder="First Name" value={form.firstName} onChange={(e) => update("firstName", e.target.value)} />
-            <Input placeholder="Phone" value={form.phone} onChange={(e) => update("phone", e.target.value)} />
-          </div>
+     
+{step === 1 && (
+  <div className="flex flex-col gap-4">
+    <div className="grid grid-cols-2 gap-4">
+      <Input placeholder="First Name" value={form.firstName} onChange={(e) => update("firstName", e.target.value)} />
+      <Input placeholder="Phone" value={form.phone} onChange={(e) => update("phone", e.target.value)} />
+    </div>
 
-          {/* EMAIL + ROLE (same row) */}
-          <div className="grid grid-cols-2 gap-4">
-            <Input placeholder="Email" value={form.email} onChange={(e) => update("email", e.target.value)} />
-            <Select value={form.role} onValueChange={(v) => update("role", v)}>
-              <SelectTrigger><SelectValue placeholder="Role" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="staff">Staff</SelectItem>
-                <SelectItem value="supplier">Supplier</SelectItem>
-                <SelectItem value="manager">Manager</SelectItem>
-                <SelectItem value="distributor">Distributor</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+    {/* EMAIL + ROLE + BIRTHDAY (same row) */}
+    <div className="grid grid-cols-3 gap-4">
+      <Input placeholder="Email" value={form.email} onChange={(e) => update("email", e.target.value)} />
+      <Select value={form.role} onValueChange={(v) => update("role", v)}>
+        <SelectTrigger><SelectValue placeholder="Role" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="staff">Staff</SelectItem>
+          <SelectItem value="supplier">Supplier</SelectItem>
+          <SelectItem value="manager">Manager</SelectItem>
+          <SelectItem value="distributor">Distributor</SelectItem>
+        </SelectContent>
+      </Select>
+      <Input type="date" placeholder="Birthday" value={form.birthday} onChange={(e) => update("birthday", e.target.value)} />
+    </div>
+  </div>
+)}
 
-          {/* BIRTHDAY (same row with first name) */}
-          <div className="grid grid-cols-2 gap-4">
-            <Input type="date" placeholder="Birthday" value={form.birthday} onChange={(e) => update("birthday", e.target.value)} />
-            <div></div> {/* empty placeholder to keep the row structure */}
-          </div>
-        </div>
-      )}
 
-      {/* STEP 3: PAYMENT */}
-      {step === 2 && (
-        <div className="flex flex-col gap-4">
-          <Select value={form.paymentMethod} onValueChange={(v) => update("paymentMethod", v)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="card">Card</SelectItem>
-              <SelectItem value="bank">Bank</SelectItem>
-              <SelectItem value="cash">Cash</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
+{step === 2 && (
+  <div className="flex flex-col gap-4">
+    <Select value={form.paymentMethod} onValueChange={(v) => update("paymentMethod", v)}>
+      <SelectTrigger><SelectValue placeholder="Payment Method" /></SelectTrigger>
+      <SelectContent>
+        <SelectItem value="card">Card</SelectItem>
+        <SelectItem value="bank">Bank</SelectItem>
+        <SelectItem value="cash">Cash</SelectItem>
+      </SelectContent>
+    </Select>
+
+    {form.paymentMethod === "card" && (
+      <div className="grid grid-cols-3 gap-4">
+        <Input placeholder="Card Number" value={form.cardNumber} onChange={(e) => update("cardNumber", e.target.value)} />
+        <Input placeholder="Expiry" value={form.expiry} onChange={(e) => update("expiry", e.target.value)} />
+        <Input placeholder="CVV" value={form.cvv} onChange={(e) => update("cvv", e.target.value)} />
+      </div>
+    )}
+
+    {form.paymentMethod === "bank" && (
+      <div className="grid grid-cols-2 gap-4">
+        <Input placeholder="Bank Name" value={form.bankName} onChange={(e) => update("bankName", e.target.value)} />
+        <Input placeholder="Account Number" value={form.accountNumber} onChange={(e) => update("accountNumber", e.target.value)} />
+      </div>
+    )}
+
+    {form.paymentMethod === "cash" && (
+      <p className="text-sm text-muted-foreground">You will pay in cash upon delivery/visit.</p>
+    )}
+  </div>
+)}
 
       {/* STEP 4: DOCUMENTS */}
       {step === 3 && <FileUpload />}
+
+      {step === "pending" && (
+  <div className="flex flex-col items-center justify-center gap-4 p-6 bg-white rounded-md shadow-md">
+    <h2 className="text-lg font-semibold">Pending Email Verification</h2>
+    <p className="text-sm text-muted-foreground text-center">
+      We've sent a verification link to your email. Please check your inbox and click the link to verify your account.
+    </p>
+    <Button
+      onClick={async () => {
+        const auth = getFirebaseAuth();
+        await auth.currentUser.reload(); // refresh user data
+        if (auth.currentUser.emailVerified) {
+          toast.success("Email verified! Redirecting...");
+          router.push("/dashboard");
+        } else {
+          toast.error("Email not verified yet. Please check your inbox.");
+        }
+      }}
+    >
+      I have verified my email
+    </Button>
+  </div>
+)}
+
 
       {/* BUTTONS */}
       <div className="mt-6 flex justify-between">
@@ -261,3 +273,7 @@ export function StepperFormDemo() {
     </form>
   );
 }
+
+
+
+  
