@@ -10,6 +10,8 @@ import { LogOut } from 'lucide-react';
 import { Separator } from "@/components/ui/separator";
 import { onAuthStateChanged } from "firebase/auth";
 import {StepperFormDemo} from "@/components/title-status";
+import { PendingVerification } from "@/components/PendingVerification";
+
 
 export default function Dashboard() {
   const router = useRouter();
@@ -17,19 +19,28 @@ export default function Dashboard() {
   const [canAccess, setCanAccess] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  useEffect(() => {
-    const auth = getFirebaseAuth();
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-        setCanAccess(true);
-      } else {
-        router.replace("/login");
-      }
-    });
+  const [emailVerified, setEmailVerified] = useState(false);
 
-    return () => unsubscribe();
-  }, [router]);
+
+  useEffect(() => {
+  const auth = getFirebaseAuth();
+
+  const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    if (!currentUser) {
+      router.replace("/login");
+      return;
+    }
+
+    await currentUser.reload();
+
+    setUser(currentUser);
+    setEmailVerified(currentUser.emailVerified);
+    setCanAccess(true);
+  });
+
+  return () => unsubscribe();
+}, [router]);
+
 
   const handleLogout = async () => {
     try {
@@ -97,14 +108,18 @@ export default function Dashboard() {
           <p className="text-slate-400 mt-1">Fill in your information to get started</p>
         </div>
 
-        {/* Stepper Card */}
-        <Card className="bg-white/5 border-white/10 backdrop-blur-sm overflow-hidden">
-          <div className="p-6 flex items-center justify-center">
-            <div className="w-full max-w-4xl animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <StepperFormDemo />
-            </div>
-          </div>
-        </Card>
+        {!emailVerified ? (
+  <PendingVerification />
+) : (
+  <Card className="bg-white/5 border-white/10 backdrop-blur-sm overflow-hidden">
+    <div className="p-6 flex items-center justify-center">
+      <div className="w-full max-w-4xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <StepperFormDemo />
+      </div>
+    </div>
+  </Card>
+)}
+
       </div>
     </div>
   );
