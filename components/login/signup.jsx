@@ -61,20 +61,24 @@ export default function AuthForm() {
   const isLoginValid = emailLogin.trim() && passwordLogin.trim();
 
   const handleSignUp = async () => {
-    if (!isSignUpValid) return;
+  if (!isSignUpValid) return;
 
-    try {
-      setIsLoading(true);
-      setError("");
-      await signup(emailSignUp, passwordSignUp, nameInput);
-      router.push("/dashboard");
-    } catch (error) {
-      setError(error.message);
-      console.error(error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  try {
+    setIsLoading(true);
+    setError("");
+
+    // Signup and send email verification
+    const userCredential = await signup(emailSignUp, passwordSignUp, nameInput);
+
+  
+    router.replace("/dashboard"); 
+  } catch (error) {
+    setError(error.message);
+    console.error(error.message);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleLogin = async (type) => {
     try {
@@ -307,3 +311,6 @@ export default function AuthForm() {
     </div>
   );
 }
+
+
+
