@@ -35,7 +35,7 @@ const steps = [
 -------------------------- */
 const years = Array.from({ length: 30 }, (_, i) => `${new Date().getFullYear() - i}`);
 
-export function StepperFormDemo() {
+export function StepperFormDemo({ onComplete }) {
   const [step, setStep] = useState(0);
   
   const [user, setUser] = useState(null);
@@ -83,33 +83,34 @@ export function StepperFormDemo() {
   }
 
   async function onSubmit(e) {
-    e.preventDefault();
-    if (!user) return toast.error("Not authenticated");
+  e.preventDefault();
+  if (!user) return toast.error("Not authenticated");
 
-    try {
-      const uid = user.uid;
+  try {
+    const uid = user.uid;
 
-      await setDoc(doc(db, "users", uid), { ...form, createdAt: serverTimestamp() });
-      await setDoc(doc(db, "companies", uid), { ...form, createdAt: serverTimestamp() });
-      await setDoc(doc(db, "payments", uid), {
-        uid,
-        paymentMethod: form.paymentMethod,
-        cardLast4: form.cardNumber?.slice(-4) || "",
-        createdAt: serverTimestamp(),
-      });
-      await setDoc(doc(db, "documents", uid), {
-        uid,
-        uploaded: false,
-        createdAt: serverTimestamp(),
-      });
+    await setDoc(doc(db, "users", uid), { ...form, createdAt: serverTimestamp() });
+    await setDoc(doc(db, "companies", uid), { ...form, createdAt: serverTimestamp() });
+    await setDoc(doc(db, "payments", uid), {
+      uid,
+      paymentMethod: form.paymentMethod,
+      cardLast4: form.cardNumber?.slice(-4) || "",
+      createdAt: serverTimestamp(),
+    });
+    await setDoc(doc(db, "documents", uid), {
+      uid,
+      uploaded: false,
+      createdAt: serverTimestamp(),
+    });
 
-      toast.success("Registration completed! Check your email to verify.");
-      setShowPending(true);
-    } catch (err) {
-      console.error(err);
-      toast.error("Submission failed");
-    }
+    toast.success("Registration completed! Check your email to verify.");
+
+    onComplete?.(); // ✅ tell Dashboard
+  } catch (err) {
+    console.error(err);
+    toast.error("Submission failed");
   }
+}
 
   return (
     <>
@@ -194,18 +195,68 @@ export function StepperFormDemo() {
           </div>
         )}
 
-        {step === 2 && (
-          <div className="flex flex-col gap-4">
-            <Select value={form.paymentMethod} onValueChange={(v) => update("paymentMethod", v)}>
-              <SelectTrigger><SelectValue placeholder="Payment Method" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="card">Card</SelectItem>
-                <SelectItem value="bank">Bank</SelectItem>
-                <SelectItem value="cash">Cash</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        )}
+       {step === 2 && (
+  <div className="flex flex-col gap-4">
+    <Select
+      value={form.paymentMethod}
+      onValueChange={(v) => update("paymentMethod", v)}
+    >
+      <SelectTrigger>
+        <SelectValue placeholder="Payment Method" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="card">Card</SelectItem>
+        <SelectItem value="bank">Bank</SelectItem>
+        <SelectItem value="cash">Cash</SelectItem>
+      </SelectContent>
+    </Select>
+
+    {/* CARD */}
+    {form.paymentMethod === "card" && (
+      <div className="grid grid-cols-3 gap-4">
+        <Input
+          placeholder="XXX XXX XXX XXX"
+          value={form.cardNumber}
+          onChange={(e) => update("cardNumber", e.target.value)}
+        />
+        <Input
+          placeholder="MM/YY"
+          value={form.expiry}
+          onChange={(e) => update("expiry", e.target.value)}
+        />
+        <Input
+          placeholder="CVV"
+          value={form.cvv}
+          onChange={(e) => update("cvv", e.target.value)}
+        />
+      </div>
+    )}
+
+    {/* BANK */}
+    {form.paymentMethod === "bank" && (
+      <div className="grid grid-cols-2 gap-4">
+        <Input
+          placeholder="Bank Name"
+          value={form.bankName}
+          onChange={(e) => update("bankName", e.target.value)}
+        />
+        <Input
+          placeholder="Account Number"
+          value={form.accountNumber}
+          onChange={(e) => update("accountNumber", e.target.value)}
+        />
+      </div>
+    )}
+
+    {/* CASH */}
+    {form.paymentMethod === "cash" && (
+      <p className="text-sm text-muted-foreground">
+        You will pay in cash upon delivery or visit.
+      </p>
+    )}
+  </div>
+)}
+
 
         {step === 3 && <FileUpload />}
 

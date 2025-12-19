@@ -21,6 +21,7 @@ export default function Dashboard() {
 
   const [emailVerified, setEmailVerified] = useState(false);
 
+const [showPending, setShowPending] = useState(false);
 
   useEffect(() => {
   const auth = getFirebaseAuth();
@@ -108,17 +109,18 @@ export default function Dashboard() {
           <p className="text-slate-400 mt-1">Fill in your information to get started</p>
         </div>
 
-        {!emailVerified ? (
+        {showPending || !emailVerified ? (
   <PendingVerification />
 ) : (
   <Card className="bg-white/5 border-white/10 backdrop-blur-sm overflow-hidden">
     <div className="p-6 flex items-center justify-center">
       <div className="w-full max-w-4xl animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <StepperFormDemo />
+        <StepperFormDemo onComplete={() => setShowPending(true)} />
       </div>
     </div>
   </Card>
 )}
+
 
       </div>
     </div>
