@@ -22,7 +22,7 @@ export default function PendingVerification() {
       if (auth.currentUser.emailVerified) {
         clearInterval(interval);
         toast.success("Email verified!");
-        router.refresh(); // dashboard re-renders without blocker
+        router.replace("/"); 
       }
     }, 5000); // auto-check every 5s
 
@@ -46,20 +46,17 @@ export default function PendingVerification() {
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-gradient-to-br from-slate-900/90 via-black/90 to-slate-900/90">
-      <div className="relative flex flex-col items-center gap-6 px-10 py-12 bg-white/95 rounded-2xl shadow-2xl max-w-md w-full backdrop-blur-lg">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="relative flex flex-col items-center gap-6 px-10 py-12 bg-white/10 border border-white/20 rounded-2xl shadow-2xl max-w-md w-full backdrop-blur-lg text-white">
 
-        {/* Spinner */}
-        <div className="relative">
-          <div className="w-20 h-20 rounded-full border-[6px] border-gray-300/40" />
-          <div className="absolute inset-0 w-20 h-20 rounded-full border-[6px] border-blue-600 border-t-transparent animate-spin" />
-        </div>
+        {/* Smooth Spinner */}
+        <div className="w-20 h-20 border-8 border-gray-500/20 border-t-blue-950 rounded-full animate-spin-smooth" />
 
         <h1 className="text-2xl font-semibold text-center">
           Verify Your Email
         </h1>
 
-        <p className="text-sm text-muted-foreground text-center leading-relaxed">
+        <p className="text-sm text-white/80 text-center leading-relaxed">
           We’ve sent a verification link to your email address.
           <br />
           Please verify your email to continue using the platform.
@@ -68,15 +65,25 @@ export default function PendingVerification() {
         <Button
           onClick={checkVerificationManually}
           disabled={checking}
-          className="w-full"
+          className="w-full bg-white/10 border border-white/20 hover:bg-white/20 text-white"
         >
           {checking ? "Checking..." : "I have verified my email"}
         </Button>
 
-        <p className="text-xs text-muted-foreground text-center">
+        <p className="text-xs text-white/50 text-center">
           This page will automatically update once verification is complete.
         </p>
       </div>
+
+      <style jsx>{`
+        @keyframes spinSmooth {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .animate-spin-smooth {
+          animation: spinSmooth 1s linear infinite;
+        }
+      `}</style>
     </div>
   );
 }
