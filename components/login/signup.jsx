@@ -64,26 +64,36 @@ export default function AuthForm() {
   // Email/password signup
  
   const handleSignUp = async () => {
-    if (!isSignUpValid) return;
+  if (!isSignUpValid) return;
 
-    try {
-      setIsLoading(true);
-      setError("");
+  try {
+    setIsLoading(true);
+    setError("");
 
-      const userCredential = await signup(emailSignUp, passwordSignUp, nameInput);
-      const user = userCredential.user;
+    const userCredential = await signup(
+      emailSignUp,
+      passwordSignUp,
+      nameInput
+    );
 
-      if (!user.emailVerified) {
-        await sendEmailVerification(user);
-        toast.success("Verification email sent! Please check your inbox.");
-      }
-    } catch (error) {
-      setError(error.message || "Signup failed");
-      console.error(error.message);
-    } finally {
-      setIsLoading(false);
+    const user = userCredential.user;
+
+    if (!user.emailVerified) {
+      await sendEmailVerification(user);
+      toast.success("Verification email sent! Please check your inbox.");
     }
-  };
+
+    // ✅ redirect after signup
+    router.replace("/dashboard");
+
+  } catch (error) {
+    setError(error.message || "Signup failed");
+    console.error(error.message);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   // Email/password login
 
