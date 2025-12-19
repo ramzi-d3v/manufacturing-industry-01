@@ -62,13 +62,13 @@ export default function PendingVerification() {
           Please verify your email to continue using the platform.
         </p>
 
-        <Button
+        {/* <Button
           onClick={checkVerificationManually}
           disabled={checking}
           className="w-full bg-white/10 border border-white/20 hover:bg-white/20 text-white"
         >
           {checking ? "Checking..." : "I have verified my email"}
-        </Button>
+        </Button> */}
 
         <p className="text-xs text-white/50 text-center">
           This page will automatically update once verification is complete.

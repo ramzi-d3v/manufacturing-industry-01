@@ -60,9 +60,9 @@ export default function AuthForm() {
   const isSignUpValid = nameInput.trim() && emailSignUp.trim() && passwordSignUp.trim();
   const isLoginValid = emailLogin.trim() && passwordLogin.trim();
 
-  // -------------------------
+
   // Email/password signup
-  // -------------------------
+ 
   const handleSignUp = async () => {
     if (!isSignUpValid) return;
 
@@ -85,9 +85,8 @@ export default function AuthForm() {
     }
   };
 
-  // -------------------------
   // Email/password login
-  // -------------------------
+
   const handleSignInClick = async () => {
     if (!isLoginValid) return;
 
@@ -106,9 +105,9 @@ export default function AuthForm() {
     }
   };
 
-  // -------------------------
+  
   // OAuth login (Google / Apple)
-  // -------------------------
+
   const handleLogin = async (type) => {
     try {
       setIsLoading(true);
@@ -147,7 +146,7 @@ export default function AuthForm() {
 
       if (isNewUser && !user.emailVerified) {
         await sendEmailVerification(user);
-        toast.success("Verification email sent! Please check your inbox.");
+        alert("fication email sent! Please check your inbox.");
       }
 
       router.replace("/dashboard");
