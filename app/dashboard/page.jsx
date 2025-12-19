@@ -107,10 +107,10 @@ const [showPending, setShowPending] = useState(false);
         </div>
 
         {/* Title and Description Outside Card */}
-       <div className="mt-4 flex justify-between items-center">
-           <span className="text-left text-lg font-medium">Complete Profile</span>
-          <span className="text-right text-sm text-muted-foreground">Step 2 of 3</span>
-       </div>
+        <div className="mt-6 mb-4 text-start flex justify-between">
+          <h2 className="text-2xl  text-white">Complete Your Profile</h2>
+          <p className="text-slate-400 mt-1">Fill in your information to get started</p>
+        </div>
 
         {showPending || !emailVerified ? (
   <PendingVerification />
