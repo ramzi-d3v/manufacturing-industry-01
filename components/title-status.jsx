@@ -18,7 +18,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { FileUpload } from "@/components/ui/file-upload";
-import PendingVerification from "@/components/PendingVerification";
+
 
 /* --------------------------
    STEPS
@@ -37,7 +37,7 @@ const years = Array.from({ length: 30 }, (_, i) => `${new Date().getFullYear() -
 
 export function StepperFormDemo() {
   const [step, setStep] = useState(0);
-  const [showPending, setShowPending] = useState(false);
+  
   const [user, setUser] = useState(null);
   const db = getFirestoreDB();
 
@@ -221,7 +221,7 @@ export function StepperFormDemo() {
         </div>
       </form>
 
-      {showPending && <PendingVerification />}
+      
     </>
   );
 }

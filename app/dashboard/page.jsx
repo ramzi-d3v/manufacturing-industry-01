@@ -10,7 +10,7 @@ import { LogOut } from 'lucide-react';
 import { Separator } from "@/components/ui/separator";
 import { onAuthStateChanged } from "firebase/auth";
 import {StepperFormDemo} from "@/components/title-status";
-import { PendingVerification } from "@/components/PendingVerification";
+
 
 
 export default function Dashboard() {
